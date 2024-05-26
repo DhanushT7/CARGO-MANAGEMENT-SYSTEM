@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enterprise Cargo and Inventory Management</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a href="../index.html" class="back">back</a>
+  <div class="container">
+    <h1>Promotions</h1>
+    <table id="promotionTable">
+      <h2 style="text-decoration: underline;">Promotion Table</h2>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Description</th>
+          <th>Discount (%)</th>
+          <th>Valid Till</th>
+          <th>Delete</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Promotion data will be loaded here -->
+      </tbody>
+    </table>
+    <form id="addPromotionForm">
+      <input type="text" id="promotionName" placeholder="Promotion Name" required>
+      <input type="text" id="promotionDescription" placeholder="Description">
+      <input type="number" id="promotionDiscount" placeholder="Discount (%)" required>
+      <input type="date" id="promotionValidTill" placeholder="Valid Till" required>
+      <button type="submit">Add Promotion</button>
+    </form>
+  </div>
+  
+  <script>
+    document.getElementById('addPromotionForm').addEventListener('submit', function(event) {
+      event.preventDefault();
+      const promotionName = document.getElementById('promotionName').value;
+      const promotionDescription = document.getElementById('promotionDescription').value;
+      const promotionDiscount = document.getElementById('promotionDiscount').value;
+      const promotionValidTill = document.getElementById('promotionValidTill').value;
+  
+      fetch('/api/promotions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name: promotionName, description: promotionDescription, discount: promotionDiscount, valid_till: promotionValidTill })
+      })
+      .then(response => response.text())
+      .then(data => {
+        alert(data);
+        location.reload(); // Reload page after adding promotion
+      })
+      .catch(error => console.error('Error:', error));
+    });
+  
+    // Fetch promotions and display them in a table
+    fetch('/api/promotions')
+    .then(response => response.json())
+    .then(promotions => {
+      const promotionTableBody = document.querySelector('#promotionTable tbody');
+      promotions.forEach(promotion => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${promotion.NAME}</td>
+          <td>${promotion.DESCRIPTION}</td>
+          <td>${promotion.DISCOUNT}</td>
+          <td>${promotion.VALID_TILL}</td>
+          <td><button onclick="deletePromotion('${promotion.NAME}')" class="red">Delete</button></td> <!-- Add delete button -->
+        `;
+        promotionTableBody.appendChild(row);
+      });
+    })
+    .catch(error => console.error('Error:', error));
+  
+    function deletePromotion(promotionName) {
+      if (confirm('Are you sure you want to delete this promotion?')) {
+        fetch(`/api/promotions/${promotionName}`, {
+          method: 'DELETE'
+        })
+        .then(response => response.text())
+        .then(data => {
+          alert(data);
+          location.reload(); // Reload page after deleting promotion
+        })
+        .catch(error => console.error('Error:', error));
+      }
+    }
+  </script>
+  
+</body>
+</html>

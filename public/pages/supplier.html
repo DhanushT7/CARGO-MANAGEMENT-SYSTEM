@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enterprise Cargo and Inventory Management</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a href="../index.html" class="back">back</a>
+  <div class="container">
+    <h1>Suppliers</h1>
+    <table id="supplierTable">
+      <h2 style="text-decoration: underline;">Supplier Table</h2>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Contact</th>
+          <th>Minimum Order Quantity</th>
+          <th>Address</th>
+          <th>Delete</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Supplier data will be loaded here -->
+      </tbody>
+    </table>
+    <form id="addSupplierForm">
+      <input type="text" id="supplierName" placeholder="Supplier Name" required>
+      <input type="text" id="supplierContact" placeholder="Contact" required>
+      <input type="number" id="supplierMOQ" placeholder="Minimum Order Quantity">
+      <input type="text" id="supplierAddress" placeholder="Address" required>
+      <button type="submit">Add Supplier</button>
+    </form>
+  </div>
+  
+  <script>
+    document.getElementById('addSupplierForm').addEventListener('submit', function(event) {
+      event.preventDefault();
+      const supplierName = document.getElementById('supplierName').value;
+      const supplierContact = document.getElementById('supplierContact').value;
+      const supplierMOQ = document.getElementById('supplierMOQ').value;
+      const supplierAddress = document.getElementById('supplierAddress').value;
+  
+      fetch('/api/suppliers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name: supplierName, contact: supplierContact, moq: supplierMOQ, address: supplierAddress })
+      })
+      .then(response => response.text())
+      .then(data => {
+        alert(data);
+        location.reload(); // Reload page after adding supplier
+      })
+      .catch(error => console.error('Error:', error));
+    });
+  
+    // Fetch suppliers and display them in a table
+    fetch('/api/suppliers')
+    .then(response => response.json())
+    .then(suppliers => {
+      const supplierTableBody = document.querySelector('#supplierTable tbody');
+      suppliers.forEach(supplier => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${supplier.SUPPLIER_ID}</td>
+          <td>${supplier.NAME}</td>
+          <td>${supplier.CONTACT}</td>
+          <td>${supplier.MOQ}</td>
+          <td>${supplier.ADDRESS}</td>
+          <td><button onclick="deleteSupplier(${supplier.SUPPLIER_ID})" class="red">Delete</button></td> <!-- Add delete button -->
+        `;
+        supplierTableBody.appendChild(row);
+      });
+    })
+    .catch(error => console.error('Error:', error));
+  
+    function deleteSupplier(supplierId) {
+      if (confirm('Are you sure you want to delete this supplier?')) {
+        fetch(`/api/suppliers/${supplierId}`, {
+          method: 'DELETE'
+        })
+        .then(response => response.text())
+        .then(data => {
+          alert(data);
+          location.reload(); // Reload page after deleting supplier
+        })
+        .catch(error => console.error('Error:', error));
+      }
+    }
+  </script>
+  
+</body>
+</html>
