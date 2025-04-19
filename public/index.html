@@ -1,136 +1,215 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Enterprise Cargo and Inventory Management</title>
-  <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cargo Management</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <h1>Enterprise Cargo and Inventory Management System</h1>
+    <div class="container">
+        <h1>Cargo Management</h1>
 
-  <!-- Cargo Entry Form -->
-  <div class="container form-container">
-    <h2>Add New Cargo</h2>
-    <form id="cargoForm">
-      <div class="form-group">
-        <label for="cargoId">Cargo ID:</label>
-        <input type="text" id="cargoId" name="cargoId" required>
-      </div>
-      
-      <div class="form-group">
-        <label for="flightNumber">Flight Number:</label>
-        <input type="text" id="flightNumber" name="flightNumber" required>
-      </div>
-      
-      <div class="form-group">
-        <label for="description">Description:</label>
-        <input type="text" id="description" name="description" required>
-      </div>
-      
-      <div class="form-group">
-        <label for="weight">Weight (kg):</label>
-        <input type="number" id="weight" name="weight" step="0.01" required>
-      </div>
-      
-      <div class="form-group">
-        <label for="status">Status:</label>
-        <select id="status" name="status" required>
-          <option value="pending">Pending</option>
-          <option value="in-transit">In Transit</option>
-          <option value="delivered">Delivered</option>
-        </select>
-      </div>
-      
-      <button type="submit">Add Cargo</button>
-    </form>
-  </div>
+        <!-- Side-by-side Flight Init & Cargo Check-in -->
+        <div class="row">
+            <!-- Initialize Flight Section -->
+            <div class="card">
+                <h2>Initialize Flight</h2>
+                <form id="initializeFlightForm">
+                    <div class="form-group">
+                        <label for="flightId">Flight ID:</label>
+                        <input type="text" id="flightId" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="totalCapacity">Total Capacity (kg):</label>
+                        <input type="number" id="totalCapacity" value="20000" required>
+                    </div>
+                    <button type="submit">Initialize Flight</button>
+                </form>
+                <div id="initializeStatus" class="status"></div>
+            </div>
 
-  <!-- Cargo Display Table -->
-  <div class="container table-container">
-    <h2>Current Cargo Status</h2>
-    <table id="cargoTable">
-      <thead>
-        <tr>
-          <th>Cargo ID</th>
-          <th>Flight Number</th>
-          <th>Description</th>
-          <th>Weight (kg)</th>
-          <th>Status</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="cargoTableBody">
-        <!-- Table rows will be dynamically populated using JavaScript -->
-      </tbody>
-    </table>
-  </div>
+            <!-- Check-in Cargo Section -->
+            <div class="card">
+                <h2>Check-in Cargo</h2>
+                <form id="checkInForm">
+                    <div class="form-group">
+                        <label for="checkInFlightId">Flight ID:</label>
+                        <input type="text" id="checkInFlightId" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="passengerId">Passenger ID:</label>
+                        <input type="number" id="passengerId" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="weight">Cargo Weight (kg):</label>
+                        <input type="number" id="weight" required>
+                    </div>
+                    <button type="submit">Check-in Cargo</button>
+                </form>
+                <div id="checkInStatus" class="status"></div>
+            </div>
+        </div>
 
-  <script>
-    // Initialize cargo data array
-    let cargoData = [];
+        <!-- Flight Status Section -->
+        <div class="card">
+            <h2>Flight Status</h2>
+            <form id="statusForm">
+                <div class="form-group">
+                    <label for="statusFlightId">Flight ID:</label>
+                    <input type="text" id="statusFlightId" required>
+                </div>
+                <button type="submit">Check Status</button>
+            </form>
+            <div id="flightStatus" class="status"></div>
+        </div>
 
-    // Handle form submission
-    document.getElementById('cargoForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-      
-      const newCargo = {
-        cargoId: document.getElementById('cargoId').value,
-        flightNumber: document.getElementById('flightNumber').value,
-        description: document.getElementById('description').value,
-        weight: document.getElementById('weight').value,
-        status: document.getElementById('status').value
-      };
+        <!-- Flights Table Section -->
+        <div class="card">
+            <h2>All Flights</h2>
+            <button onclick="loadFlights()">Refresh Flights</button>
+            <table id="flightsTable" border="1" cellpadding="10" cellspacing="0">
+                <thead>
+                    <tr>
+                        <th>Flight ID</th>
+                        <th>Total Capacity (kg)</th>
+                        <th>Remaining Capacity (kg)</th>
+                        <th>Created At</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
 
-      // Add to array
-      cargoData.push(newCargo);
-      
-      // Update table
-      updateCargoTable();
-      
-      // Reset form
-      this.reset();
-    });
+        <!-- Cargo Check-ins Table Section -->
+        <div class="card">
+            <h2>Flight Check-ins</h2>
+            <div class="form-group">
+                <label for="checkInFlightListId">Flight ID:</label>
+                <input type="text" id="checkInFlightListId">
+                <button onclick="loadCheckIns()">Load Check-ins</button>
+            </div>
+            <table id="checkInsTable" border="1" cellpadding="10" cellspacing="0">
+                <thead>
+                    <tr>
+                        <th>Passenger ID</th>
+                        <th>Passenger Name</th>
+                        <th>Weight (kg)</th>
+                        <th>Price ($)</th>
+                        <th>Check-in Time</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
 
-    function updateCargoTable() {
-      const tableBody = document.getElementById('cargoTableBody');
-      tableBody.innerHTML = '';
-      
-      cargoData.forEach(cargo => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${cargo.cargoId}</td>
-          <td>${cargo.flightNumber}</td>
-          <td>${cargo.description}</td>
-          <td>${cargo.weight}</td>
-          <td>${cargo.status}</td>
-          <td>
-            <button onclick="deleteCargo('${cargo.cargoId}')">Delete</button>
-            <button onclick="editCargo('${cargo.cargoId}')">Edit</button>
-          </td>
-        `;
-        tableBody.appendChild(row);
-      });
-    }
+    <script>
+        document.getElementById('initializeFlightForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const flightId = document.getElementById('flightId').value;
+            const totalCapacity = document.getElementById('totalCapacity').value;
 
-    function deleteCargo(cargoId) {
-      cargoData = cargoData.filter(cargo => cargo.cargoId !== cargoId);
-      updateCargoTable();
-    }
+            try {
+                const response = await fetch('/api/flight/initialize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ flightId, totalCapacity: Number(totalCapacity) })
+                });
+                const data = await response.json();
+                document.getElementById('initializeStatus').innerText = data.message;
+            } catch (error) {
+                document.getElementById('initializeStatus').innerText = 'Error: ' + error.message;
+            }
+        });
 
-    function editCargo(cargoId) {
-      const cargo = cargoData.find(c => c.cargoId === cargoId);
-      if (cargo) {
-        document.getElementById('cargoId').value = cargo.cargoId;
-        document.getElementById('flightNumber').value = cargo.flightNumber;
-        document.getElementById('description').value = cargo.description;
-        document.getElementById('weight').value = cargo.weight;
-        document.getElementById('status').value = cargo.status;
-        
-        // Remove the old entry
-        deleteCargo(cargoId);
-      }
-    }
-  </script>
+        document.getElementById('checkInForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const flightId = document.getElementById('checkInFlightId').value;
+            const passengerId = document.getElementById('passengerId').value;
+            const weight = document.getElementById('weight').value;
+
+            try {
+                const response = await fetch('/api/cargo/check-in', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ flightId, passengerId: Number(passengerId), weight: Number(weight) })
+                });
+                const data = await response.json();
+                document.getElementById('checkInStatus').innerText =
+                    `Success! Price: $${data.price}, Remaining Capacity: ${data.remainingCapacity}kg`;
+            } catch (error) {
+                document.getElementById('checkInStatus').innerText = 'Error: ' + error.message;
+            }
+        });
+
+        document.getElementById('statusForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const flightId = document.getElementById('statusFlightId').value;
+
+            try {
+                const response = await fetch(`/api/flight/${flightId}/status`);
+                const data = await response.json();
+                document.getElementById('flightStatus').innerText =
+                    `Total Capacity: ${data.totalCapacity}kg\n` +
+                    `Remaining Capacity: ${data.remainingCapacity}kg\n` +
+                    `Used Capacity: ${data.usedCapacity}kg`;
+            } catch (error) {
+                document.getElementById('flightStatus').innerText = 'Error: ' + error.message;
+            }
+        });
+
+        async function loadFlights() {
+            const response = await fetch('/api/flights');
+            const flights = await response.json();
+            const tableBody = document.querySelector('#flightsTable tbody');
+            tableBody.innerHTML = '';
+
+            flights.forEach(flight => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${flight.flight_id}</td>
+                    <td>${flight.total_capacity}kg</td>
+                    <td>${flight.remaining_capacity}kg</td>
+                    <td>${new Date(flight.created_at).toLocaleString()}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        async function loadCheckIns() {
+            const flightId = document.getElementById('checkInFlightListId').value.trim();
+            if (!flightId) {
+                alert("Please enter a Flight ID");
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/flight/${flightId}/check-ins`);
+                const checkIns = await response.json();
+                const tableBody = document.querySelector('#checkInsTable tbody');
+                tableBody.innerHTML = '';
+
+                if (!Array.isArray(checkIns) || checkIns.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="5">No check-ins found.</td></tr>';
+                    return;
+                }
+
+                checkIns.forEach(entry => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${entry.passenger_id}</td>
+                        <td>${entry.passenger_name || 'N/A'}</td>
+                        <td>${entry.weight}</td>
+                        <td>${entry.price}</td>
+                        <td>${new Date(entry.check_in_time).toLocaleString()}</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            } catch (err) {
+                console.error('Failed to load check-ins:', err);
+            }
+        }
+    </script>
 </body>
 </html>
