@@ -1,153 +1,191 @@
 const express = require('express');
 const mysql = require('mysql');
-const bodyParser = require('body-parser');
-
+const cors = require('cors');
 const app = express();
-const port = 3000;
 
-// Create MySQL connection
-const connection = mysql.createConnection({
-  host: 'localhost',
-  user: 'root',
-  password: 'password',
-  database: 'ecims'
-});
-
-// Connect to MySQL
-connection.connect((err) => {
-  if (err) throw err;
-  console.log('Connected to MySQL database');
-});
+require('dotenv').config();
 
 // Middleware
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cors());
+app.use(express.json());
 app.use(express.static('public'));
 
-app.get('/', (req, res) => {
-  res.send();
+// Database connection
+const connection = mysql.createConnection({
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: 'cargo_db'
 });
 
-// Routes
-// Example route for fetching customers
-app.get('/api/customers', (req, res) => {
-  connection.query('SELECT * FROM customer', (err, rows) => {
-    if (err) throw err;
-    res.json(rows);
-  });
+connection.connect((err) => {
+    if (err) {
+        console.error('Error connecting to database:', err);
+        return;
+    }
+    console.log('Connected to MySQL database');
 });
 
-// Example route for adding a customer
-app.post('/api/customers', (req, res) => {
-  const { firstName, lastName, email, address } = req.body;
-  const query = `INSERT INTO customer (CUSTOMER_FIRST_NAME, CUSTOMER_LAST_NAME, CUSTOMER_EMAIL, CUSTOMER_ADDRESS) 
-                 VALUES ('${firstName}', '${lastName}', '${email}', '${address}')`;
-  connection.query(query, (err, result) => {
-    if (err) throw err;
-    res.send('Customer added successfully');
-  });
+// Initialize flight with cargo capacity
+app.post('/api/flight/initialize', (req, res) => {
+    const { flightId, totalCapacity = 20000 } = req.body; // Default 20000kg capacity
+    
+    const query = `INSERT INTO flights (flight_id, total_capacity, remaining_capacity) 
+                   VALUES (?, ?, ?)`;
+    
+    connection.query(query, [flightId, totalCapacity, totalCapacity], (err, result) => {
+        if (err) {
+            console.error('Error initializing flight:', err);
+            res.status(500).json({ error: 'Failed to initialize flight' });
+            return;
+        }
+        res.json({ 
+            message: 'Flight initialized successfully',
+            flightId,
+            totalCapacity,
+            remainingCapacity: totalCapacity
+        });
+    });
 });
 
-// Example route for deleting a customer
-app.delete('/api/customers/:id', (req, res) => {
-  const customerId = req.params.id;
-  const query = `DELETE FROM customer WHERE CUSTOMER_ID = ${customerId}`;
-  connection.query(query, (err, result) => {
-    if (err) throw err;
-    res.send('Customer deleted successfully');
-  });
+// Handle passenger cargo check-in
+app.post('/api/cargo/check-in', (req, res) => {
+    const { flightId, passengerId, weight } = req.body;
+    const standardWeight = 35; // Standard weight limit
+    const baseRate = 100; // Base price per kg
+
+    // Get current flight capacity
+    connection.query(
+        'SELECT * FROM flights WHERE flight_id = ?',
+        [flightId],
+        (err, flights) => {
+            if (err) {
+                res.status(500).json({ error: 'Database error' });
+                return;
+            }
+
+            if (flights.length === 0) {
+                res.status(404).json({ error: 'Flight not found' });
+                return;
+            }
+
+            const flight = flights[0];
+            const remainingCapacity = flight.remaining_capacity;
+
+            // Check if there's enough capacity
+            if (weight > remainingCapacity) {
+                res.status(400).json({
+                    error: 'Exceeds remaining capacity',
+                    remainingCapacity
+                });
+                return;
+            }
+
+            // Calculate price
+            let price = baseRate;
+            if (weight > standardWeight) {
+                const extraWeight = weight - standardWeight;
+                price += extraWeight * (baseRate * 1.5); // 50% extra for additional weight
+            } else if (weight < standardWeight) {
+                // Calculate discount based on remaining capacity percentage
+                const capacityUtilization = (flight.total_capacity - remainingCapacity) / flight.total_capacity;
+                if (capacityUtilization < 0.5) {
+                    price = price * 0.8; // 20% discount when utilization is low
+                }
+            }
+
+            // Update remaining capacity and record check-in
+            const newRemainingCapacity = remainingCapacity - weight;
+            connection.query(
+                'UPDATE flights SET remaining_capacity = ? WHERE flight_id = ?',
+                [newRemainingCapacity, flightId],
+                (updateErr) => {
+                    if (updateErr) {
+                        res.status(500).json({ error: 'Failed to update capacity' });
+                        return;
+                    }
+
+                    // Record the check-in
+                    const checkInQuery = `
+                        INSERT INTO cargo_checkins 
+                        (flight_id, passenger_id, weight, price) 
+                        VALUES (?, ?, ?, ?)
+                    `;
+                    
+                    connection.query(checkInQuery, 
+                        [flightId, passengerId, weight, price],
+                        (checkInErr) => {
+                            if (checkInErr) {
+                                res.status(500).json({ error: 'Failed to record check-in' });
+                                return;
+                            }
+
+                            res.json({
+                                message: 'Cargo checked in successfully',
+                                checkedInWeight: weight,
+                                price,
+                                remainingCapacity: newRemainingCapacity
+                            });
+                        }
+                    );
+                }
+            );
+        }
+    );
 });
 
-// Get all products
-app.get('/api/products', (req, res) => {
-  connection.query('SELECT * FROM product', (err, rows) => {
-    if (err) throw err;
-    res.json(rows);
-  });
+// Get flight cargo status
+app.get('/api/flight/:flightId/status', (req, res) => {
+    const { flightId } = req.params;
+    
+    connection.query(
+        'SELECT * FROM flights WHERE flight_id = ?',
+        [flightId],
+        (err, flights) => {
+            if (err) {
+                res.status(500).json({ error: 'Database error' });
+                return;
+            }
+
+            if (flights.length === 0) {
+                res.status(404).json({ error: 'Flight not found' });
+                return;
+            }
+
+            const flight = flights[0];
+            res.json({
+                flightId: flight.flight_id,
+                totalCapacity: flight.total_capacity,
+                remainingCapacity: flight.remaining_capacity,
+                usedCapacity: flight.total_capacity - flight.remaining_capacity
+            });
+        }
+    );
 });
 
-// Add a new product
-app.post('/api/products', (req, res) => {
-  const { name, brand, description, quantity_on_hand, coo, category } = req.body;
-  const query = `INSERT INTO product (NAME, BRAND, DESCRIPTION, QUANTITY_ON_HAND, COO, CATEGORY) 
-                 VALUES ('${name}', '${brand}', '${description}', '${quantity_on_hand}', '${coo}', '${category}')`;
-  connection.query(query, (err, result) => {
-    if (err) throw err;
-    res.send('Product added successfully');
-  });
+// Get all check-ins for a flight
+app.get('/api/flight/:flightId/check-ins', (req, res) => {
+    const { flightId } = req.params;
+    
+    const query = `
+        SELECT c.*, p.passenger_name 
+        FROM cargo_checkins c
+        JOIN passengers p ON c.passenger_id = p.passenger_id
+        WHERE c.flight_id = ?
+        ORDER BY c.check_in_time DESC
+    `;
+    
+    connection.query(query, [flightId], (err, checkins) => {
+        if (err) {
+            res.status(500).json({ error: 'Database error' });
+            return;
+        }
+        
+        res.json(checkins);
+    });
 });
 
-// Delete a product by ID
-app.delete('/api/products/:id', (req, res) => {
-  const productId = req.params.id;
-  const query = `DELETE FROM product WHERE PRODUCT_ID = ${productId}`;
-  connection.query(query, (err, result) => {
-    if (err) throw err;
-    res.send('Product deleted successfully');
-  });
-});
-
-// Get all suppliers
-app.get('/api/suppliers', (req, res) => {
-  connection.query('SELECT * FROM supplier', (err, rows) => {
-    if (err) throw err;
-    res.json(rows);
-  });
-});
-
-// Add a new supplier
-app.post('/api/suppliers', (req, res) => {
-  const { name, contact, moq, address } = req.body;
-  const query = `INSERT INTO supplier (NAME, CONTACT, MOQ, ADDRESS) 
-                 VALUES ('${name}', '${contact}', '${moq}', '${address}')`;
-  connection.query(query, (err, result) => {
-    if (err) throw err;
-    res.send('Supplier added successfully');
-  });
-});
-
-// Delete a supplier by ID
-app.delete('/api/suppliers/:id', (req, res) => {
-  const supplierId = req.params.id;
-  const query = `DELETE FROM supplier WHERE SUPPLIER_ID = ${supplierId}`;
-  connection.query(query, (err, result) => {
-    if (err) throw err;
-    res.send('Supplier deleted successfully');
-  });
-});
-
-
-// Get all promotions
-app.get('/api/promotions', (req, res) => {
-  connection.query('SELECT * FROM promotion', (err, rows) => {
-    if (err) throw err;
-    res.json(rows);
-  });
-});
-
-// Add a new promotion
-app.post('/api/promotions', (req, res) => {
-  const { name, description, discount, valid_till } = req.body;
-  const query = `INSERT INTO promotion (NAME, DESCRIPTION, DISCOUNT, VALID_TILL) 
-                 VALUES ('${name}', '${description}', '${discount}', '${valid_till}')`;
-  connection.query(query, (err, result) => {
-    if (err) throw err;
-    res.send('Promotion added successfully');
-  });
-});
-
-// Delete a promotion by name
-app.delete('/api/promotions/:name', (req, res) => {
-  const promotionName = req.params.name;
-  const query = `DELETE FROM promotion WHERE NAME = '${promotionName}'`;
-  connection.query(query, (err, result) => {
-    if (err) throw err;
-    res.send('Promotion deleted successfully');
-  });
-});
-
-
-// Start server
-app.listen(port, '0.0.0.0', () => {
-  console.log(`Server running on port ${port}`);
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
 });

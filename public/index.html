@@ -8,14 +8,129 @@
 </head>
 <body>
   <h1>Enterprise Cargo and Inventory Management System</h1>
-  <div class="container">
-    <h1 style="border-bottom: 1px solid #ccc; padding-bottom: 2rem;">Select Table</h1>
-    <ul>
-      <li><a href="pages/customer.html"><img src="https://www.svgrepo.com/show/486135/customer-list-line.svg" />Customer</a></li>
-      <li><a href="pages/product.html"><img src="https://www.svgrepo.com/show/422038/product.svg" />Product</a></li>
-      <li><a href="pages/supplier.html"><img src="https://www.svgrepo.com/show/533548/warehouse-full.svg" />Supplier</a></li>
-      <li><a href="pages/promotion.html"><img src="https://www.svgrepo.com/show/294516/promotion.svg" />Promotion</a></li>
-    </ul>
+
+  <!-- Cargo Entry Form -->
+  <div class="container form-container">
+    <h2>Add New Cargo</h2>
+    <form id="cargoForm">
+      <div class="form-group">
+        <label for="cargoId">Cargo ID:</label>
+        <input type="text" id="cargoId" name="cargoId" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="flightNumber">Flight Number:</label>
+        <input type="text" id="flightNumber" name="flightNumber" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="description">Description:</label>
+        <input type="text" id="description" name="description" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="weight">Weight (kg):</label>
+        <input type="number" id="weight" name="weight" step="0.01" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="status">Status:</label>
+        <select id="status" name="status" required>
+          <option value="pending">Pending</option>
+          <option value="in-transit">In Transit</option>
+          <option value="delivered">Delivered</option>
+        </select>
+      </div>
+      
+      <button type="submit">Add Cargo</button>
+    </form>
   </div>
+
+  <!-- Cargo Display Table -->
+  <div class="container table-container">
+    <h2>Current Cargo Status</h2>
+    <table id="cargoTable">
+      <thead>
+        <tr>
+          <th>Cargo ID</th>
+          <th>Flight Number</th>
+          <th>Description</th>
+          <th>Weight (kg)</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="cargoTableBody">
+        <!-- Table rows will be dynamically populated using JavaScript -->
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    // Initialize cargo data array
+    let cargoData = [];
+
+    // Handle form submission
+    document.getElementById('cargoForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const newCargo = {
+        cargoId: document.getElementById('cargoId').value,
+        flightNumber: document.getElementById('flightNumber').value,
+        description: document.getElementById('description').value,
+        weight: document.getElementById('weight').value,
+        status: document.getElementById('status').value
+      };
+
+      // Add to array
+      cargoData.push(newCargo);
+      
+      // Update table
+      updateCargoTable();
+      
+      // Reset form
+      this.reset();
+    });
+
+    function updateCargoTable() {
+      const tableBody = document.getElementById('cargoTableBody');
+      tableBody.innerHTML = '';
+      
+      cargoData.forEach(cargo => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${cargo.cargoId}</td>
+          <td>${cargo.flightNumber}</td>
+          <td>${cargo.description}</td>
+          <td>${cargo.weight}</td>
+          <td>${cargo.status}</td>
+          <td>
+            <button onclick="deleteCargo('${cargo.cargoId}')">Delete</button>
+            <button onclick="editCargo('${cargo.cargoId}')">Edit</button>
+          </td>
+        `;
+        tableBody.appendChild(row);
+      });
+    }
+
+    function deleteCargo(cargoId) {
+      cargoData = cargoData.filter(cargo => cargo.cargoId !== cargoId);
+      updateCargoTable();
+    }
+
+    function editCargo(cargoId) {
+      const cargo = cargoData.find(c => c.cargoId === cargoId);
+      if (cargo) {
+        document.getElementById('cargoId').value = cargo.cargoId;
+        document.getElementById('flightNumber').value = cargo.flightNumber;
+        document.getElementById('description').value = cargo.description;
+        document.getElementById('weight').value = cargo.weight;
+        document.getElementById('status').value = cargo.status;
+        
+        // Remove the old entry
+        deleteCargo(cargoId);
+      }
+    }
+  </script>
 </body>
 </html>

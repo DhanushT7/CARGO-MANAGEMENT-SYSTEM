@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cargo Management</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .status {
+            font-weight: bold;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Cargo Management</h1>
+        
+        <!-- Initialize Flight Section -->
+        <div class="card">
+            <h2>Initialize Flight</h2>
+            <form id="initializeFlightForm">
+                <div class="form-group">
+                    <label for="flightId">Flight ID:</label>
+                    <input type="text" id="flightId" required>
+                </div>
+                <div class="form-group">
+                    <label for="totalCapacity">Total Capacity (kg):</label>
+                    <input type="number" id="totalCapacity" value="20000" required>
+                </div>
+                <button type="submit">Initialize Flight</button>
+            </form>
+            <div id="initializeStatus" class="status"></div>
+        </div>
+
+        <!-- Check-in Cargo Section -->
+        <div class="card">
+            <h2>Check-in Cargo</h2>
+            <form id="checkInForm">
+                <div class="form-group">
+                    <label for="checkInFlightId">Flight ID:</label>
+                    <input type="text" id="checkInFlightId" required>
+                </div>
+                <div class="form-group">
+                    <label for="passengerId">Passenger ID:</label>
+                    <input type="number" id="passengerId" required>
+                </div>
+                <div class="form-group">
+                    <label for="weight">Cargo Weight (kg):</label>
+                    <input type="number" id="weight" required>
+                </div>
+                <button type="submit">Check-in Cargo</button>
+            </form>
+            <div id="checkInStatus" class="status"></div>
+        </div>
+
+        <!-- Flight Status Section -->
+        <div class="card">
+            <h2>Flight Status</h2>
+            <form id="statusForm">
+                <div class="form-group">
+                    <label for="statusFlightId">Flight ID:</label>
+                    <input type="text" id="statusFlightId" required>
+                </div>
+                <button type="submit">Check Status</button>
+            </form>
+            <div id="flightStatus" class="status"></div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Flight
+        document.getElementById('initializeFlightForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const flightId = document.getElementById('flightId').value;
+            const totalCapacity = document.getElementById('totalCapacity').value;
+            
+            try {
+                const response = await fetch('/api/flight/initialize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ flightId, totalCapacity: Number(totalCapacity) })
+                });
+                const data = await response.json();
+                document.getElementById('initializeStatus').innerText = data.message;
+            } catch (error) {
+                document.getElementById('initializeStatus').innerText = 'Error: ' + error.message;
+            }
+        });
+
+        // Check-in Cargo
+        document.getElementById('checkInForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const flightId = document.getElementById('checkInFlightId').value;
+            const passengerId = document.getElementById('passengerId').value;
+            const weight = document.getElementById('weight').value;
+
+            try {
+                const response = await fetch('/api/cargo/check-in', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        flightId,
+                        passengerId: Number(passengerId),
+                        weight: Number(weight)
+                    })
+                });
+                const data = await response.json();
+                document.getElementById('checkInStatus').innerText = 
+                    `Success! Price: $${data.price}, Remaining Capacity: ${data.remainingCapacity}kg`;
+            } catch (error) {
+                document.getElementById('checkInStatus').innerText = 'Error: ' + error.message;
+            }
+        });
+
+        // Check Flight Status
+        document.getElementById('statusForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const flightId = document.getElementById('statusFlightId').value;
+
+            try {
+                const response = await fetch(`/api/flight/${flightId}/status`);
+                const data = await response.json();
+                document.getElementById('flightStatus').innerText = 
+                    `Total Capacity: ${data.totalCapacity}kg\n` +
+                    `Remaining Capacity: ${data.remainingCapacity}kg\n` +
+                    `Used Capacity: ${data.usedCapacity}kg`;
+            } catch (error) {
+                document.getElementById('flightStatus').innerText = 'Error: ' + error.message;
+            }
+        });
+    </script>
+</body>
+</html>
