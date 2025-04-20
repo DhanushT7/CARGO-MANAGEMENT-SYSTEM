@@ -10,9 +10,7 @@
     <div class="container">
       <h1>Cargo Management</h1>
 
-      <!-- Side-by-side Flight Init & Cargo Check-in -->
       <div class="row">
-        <!-- Initialize Flight Section -->
         <div class="card">
           <h2>Initialize Flight</h2>
           <form id="initializeFlightForm">
@@ -29,7 +27,6 @@
           <div id="initializeStatus" class="status"></div>
         </div>
 
-        <!-- Check-in Cargo Section -->
         <div class="card">
           <h2>Check-in Cargo</h2>
           <form id="checkInForm">
@@ -51,7 +48,6 @@
         </div>
       </div>
 
-      <!-- Flight Status Section -->
       <div class="card">
         <h2>Flight Status</h2>
         <form id="statusForm">
@@ -64,7 +60,6 @@
         <div id="flightStatus" class="status"></div>
       </div>
 
-      <!-- Flights Table Section -->
       <div class="card">
         <h2>All Flights</h2>
         <button onclick="loadFlights()">Refresh Flights</button>
@@ -81,7 +76,6 @@
         </table>
       </div>
 
-      <!-- Cargo Check-ins Table Section -->
       <div class="card">
         <h2>Flight Check-ins</h2>
         <div class="form-group">
@@ -95,7 +89,7 @@
               <th>Passenger ID</th>
               <th>Passenger Name</th>
               <th>Weight (kg)</th>
-              <th>Price ($)</th>
+              <th>Price (₹)</th>
               <th>Check-in Time</th>
             </tr>
           </thead>
@@ -151,7 +145,7 @@
             const data = await response.json();
             document.getElementById(
               "checkInStatus"
-            ).innerText = `Success! Price: $${data.price}, Remaining Capacity: ${data.remainingCapacity}kg`;
+            ).innerText = `Success! Price: ₹${data.priceInRupees}, Remaining Capacity: ${data.remainingCapacity}kg`;
           } catch (error) {
             document.getElementById("checkInStatus").innerText =
               "Error: " + error.message;
@@ -169,14 +163,14 @@
             const data = await response.json();
 
             document.getElementById("flightStatus").innerHTML = `
-            <p><strong>Total Capacity:</strong> ${data.totalCapacity}kg</p>
-            <p><strong>Used Capacity:</strong> ${data.usedCapacity}kg</p>
-            <p><strong>Remaining Capacity:</strong> ${
-              data.remainingCapacity
-            }kg</p>
-            <p><strong>No. of Travelers:</strong> ${data.numTravelers}</p>
-            <p><strong>Average Weight per Traveler:</strong> ${data.avgWeight}kg</p>
-        `;
+              <p><strong>Total Capacity:</strong> ${data.totalCapacity}kg</p>
+              <p><strong>Used Capacity:</strong> ${data.usedCapacity}kg</p>
+              <p><strong>Remaining Capacity:</strong> ${
+                data.remainingCapacity
+              }kg</p>
+              <p><strong>No. of Travelers:</strong> ${data.numTravelers}</p>
+              <p><strong>Average Weight per Traveler:</strong> ${data.avgWeight}kg</p>
+          `;
           } catch (error) {
             document.getElementById("flightStatus").innerText =
               "Error: " + error.message;
@@ -192,11 +186,11 @@
         flights.forEach((flight) => {
           const row = document.createElement("tr");
           row.innerHTML = `
-                    <td>${flight.flight_id}</td>
-                    <td>${flight.total_capacity}kg</td>
-                    <td>${flight.remaining_capacity}kg</td>
-                    <td>${new Date(flight.created_at).toLocaleString()}</td>
-                `;
+                            <td>${flight.flight_id}</td>
+                            <td>${flight.total_capacity}kg</td>
+                            <td>${flight.remaining_capacity}kg</td>
+                            <td>${new Date(flight.created_at).toLocaleString()}</td>
+                        `;
           tableBody.appendChild(row);
         });
       }
@@ -225,14 +219,14 @@
           checkIns.forEach((entry) => {
             const row = document.createElement("tr");
             row.innerHTML = `
-                        <td>${entry.passenger_id}</td>
-                        <td>${entry.passenger_name || "N/A"}</td>
-                        <td>${entry.weight}</td>
-                        <td>${entry.price}</td>
-                        <td>${new Date(
-                          entry.check_in_time
-                        ).toLocaleString()}</td>
-                    `;
+                              <td>${entry.passenger_id}</td>
+                              <td>${entry.passenger_name || "N/A"}</td>
+                              <td>${entry.weight}</td>
+                              <td>₹${parseFloat(entry.price).toFixed(2)}</td>
+                              <td>${new Date(
+                                entry.check_in_time
+                              ).toLocaleString()}</td>
+                          `;
             tableBody.appendChild(row);
           });
         } catch (err) {

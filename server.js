@@ -38,8 +38,8 @@ connection.connect((err) => {
 app.post("/api/flight/initialize", (req, res) => {
   const { flightId, totalCapacity = 20000 } = req.body; // Default 20000kg capacity
 
-  const query = `INSERT INTO flights (flight_id, total_capacity, remaining_capacity) 
-                   VALUES (?, ?, ?)`;
+  const query = `INSERT INTO flights (flight_id, total_capacity, remaining_capacity)
+                  VALUES (?, ?, ?)`;
 
   connection.query(
     query,
@@ -64,7 +64,7 @@ app.post("/api/flight/initialize", (req, res) => {
 app.post("/api/cargo/check-in", (req, res) => {
   const { flightId, passengerId, weight } = req.body;
   const standardWeight = 35; // Standard weight limit in kg
-  const baseRate = 100; // Base price per passenger
+  const baseRateInRupees = 100 * 85; // Base price per passenger in Rupees (1 USD = 85 Rupees)
 
   // Get current flight info
   connection.query(
@@ -109,16 +109,16 @@ app.post("/api/cargo/check-in", (req, res) => {
           let coveredByPool = Math.min(extraWeight, unusedAllowance);
           let chargeableExtra = extraWeight - coveredByPool;
 
-          // Calculate price
-          let price = baseRate;
+          // Calculate price in Rupees
+          let priceInRupees = baseRateInRupees;
           if (chargeableExtra > 0) {
-            price += chargeableExtra * (baseRate * 1.5); // 50% surcharge
+            priceInRupees += chargeableExtra * (baseRateInRupees * 1.5); // 50% surcharge
           } else if (weight < standardWeight) {
             const capacityUtilization =
               (flight.total_capacity - remainingCapacity) /
               flight.total_capacity;
             if (capacityUtilization < 0.5) {
-              price *= 0.8; // 20% discount
+              priceInRupees *= 0.8; // 20% discount
             }
           }
 
@@ -137,14 +137,14 @@ app.post("/api/cargo/check-in", (req, res) => {
 
               // Insert check-in record
               const insertQuery = `
-                                INSERT INTO cargo_checkins 
-                                (flight_id, passenger_id, weight, price) 
-                                VALUES (?, ?, ?, ?)
-                            `;
+                                  INSERT INTO cargo_checkins
+                                  (flight_id, passenger_id, weight, price)
+                                  VALUES (?, ?, ?, ?)
+                                `;
 
               connection.query(
                 insertQuery,
-                [flightId, passengerId, weight, price],
+                [flightId, passengerId, weight, priceInRupees],
                 (insertErr) => {
                   if (insertErr) {
                     console.error('Check-in error details:', insertErr);
@@ -159,7 +159,7 @@ app.post("/api/cargo/check-in", (req, res) => {
                     extraWeight,
                     coveredByPool,
                     chargedWeight: chargeableExtra,
-                    price,
+                    priceInRupees: parseFloat(priceInRupees).toFixed(2),
                     remainingCapacity: newRemainingCapacity,
                   });
                 }
@@ -193,7 +193,7 @@ app.get('/api/flight/:flightId/status', (req, res) => {
 
   const flightQuery = 'SELECT * FROM flights WHERE flight_id = ?';
   const statsQuery = `
-      SELECT 
+      SELECT
           COUNT(*) AS numTravelers,
           COALESCE(AVG(weight), 0) AS avgWeight
       FROM cargo_checkins
@@ -201,55 +201,55 @@ app.get('/api/flight/:flightId/status', (req, res) => {
   `;
 
   connection.query(flightQuery, [flightId], (err, flights) => {
-      if (err) {
-          return res.status(500).json({ error: 'Database error' });
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+
+    if (flights.length === 0) {
+      return res.status(404).json({ error: 'Flight not found' });
+    }
+
+    const flight = flights[0];
+
+    // Get numTravelers and avgWeight
+    connection.query(statsQuery, [flightId], (err2, stats) => {
+      if (err2) {
+        return res.status(500).json({ error: 'Stats query error' });
       }
 
-      if (flights.length === 0) {
-          return res.status(404).json({ error: 'Flight not found' });
-      }
+      const { numTravelers, avgWeight } = stats[0];
 
-      const flight = flights[0];
-
-      // Get numTravelers and avgWeight
-      connection.query(statsQuery, [flightId], (err2, stats) => {
-          if (err2) {
-              return res.status(500).json({ error: 'Stats query error' });
-          }
-
-          const { numTravelers, avgWeight } = stats[0];
-
-          res.json({
-              flightId: flight.flight_id,
-              totalCapacity: flight.total_capacity,
-              remainingCapacity: flight.remaining_capacity,
-              usedCapacity: flight.total_capacity - flight.remaining_capacity,
-              numTravelers,
-              avgWeight: avgWeight !== null ? parseFloat(avgWeight).toFixed(2) : "0.00"
-          });
+      res.json({
+        flightId: flight.flight_id,
+        totalCapacity: flight.total_capacity,
+        remainingCapacity: flight.remaining_capacity,
+        usedCapacity: flight.total_capacity - flight.remaining_capacity,
+        numTravelers,
+        avgWeight: avgWeight !== null ? parseFloat(avgWeight).toFixed(2) : "0.00"
       });
+    });
   });
 });
 
 app.get('/api/flight/:flightId/check-ins', (req, res) => {
-    const { flightId } = req.params;
+  const { flightId } = req.params;
 
-    const query = `
-        SELECT c.*, p.passenger_name 
-        FROM cargo_checkins c
-        LEFT JOIN passengers p ON c.passenger_id = p.passenger_id
-        WHERE c.flight_id = ?
-        ORDER BY c.check_in_time DESC
-    `;
+  const query = `
+      SELECT c.*, p.passenger_name
+      FROM cargo_checkins c
+      LEFT JOIN passengers p ON c.passenger_id = p.passenger_id
+      WHERE c.flight_id = ?
+      ORDER BY c.check_in_time DESC
+  `;
 
-    connection.query(query, [flightId], (err, checkins) => {
-        if (err) {
-            res.status(500).json({ error: 'Database error' });
-            return;
-        }
+  connection.query(query, [flightId], (err, checkins) => {
+    if (err) {
+      res.status(500).json({ error: 'Database error' });
+      return;
+    }
 
-        res.json(checkins);
-    });
+    res.json(checkins);
+  });
 });
 
 const PORT = process.env.PORT || 3000;
