@@ -1,9 +1,17 @@
-const express = require("express");
-const mysql = require("mysql");
-const cors = require("cors");
-const app = express();
+import express from 'express';
+import mysql from 'mysql';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import path from 'path';
 
-require("dotenv").config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+dotenv.config();
+
+const app = express();
 
 // Middleware
 app.use(cors());
@@ -39,7 +47,7 @@ app.post("/api/flight/initialize", (req, res) => {
     (err, result) => {
       if (err) {
         console.error("Error initializing flight:", err);
-        res.status(500).json({ error: "Failed to initialize flight" });
+        res.status(500).json({ error: "Failed to initialize flight", details: err.message });
         return;
       }
       res.json({
@@ -139,9 +147,10 @@ app.post("/api/cargo/check-in", (req, res) => {
                 [flightId, passengerId, weight, price],
                 (insertErr) => {
                   if (insertErr) {
+                    console.error('Check-in error details:', insertErr);
                     return res
                       .status(500)
-                      .json({ error: "Failed to record check-in" });
+                      .json({ error: "Failed to record check-in", details: insertErr.message });
                   }
 
                   res.json({
@@ -178,33 +187,48 @@ app.get("/api/flights", (req, res) => {
   );
 });
 
-// Get flight cargo status
-app.get("/api/flight/:flightId/status", (req, res) => {
+// Get flight cargo status + number of travelers + average weight
+app.get('/api/flight/:flightId/status', (req, res) => {
   const { flightId } = req.params;
 
-  connection.query(
-    "SELECT * FROM flights WHERE flight_id = ?",
-    [flightId],
-    (err, flights) => {
+  const flightQuery = 'SELECT * FROM flights WHERE flight_id = ?';
+  const statsQuery = `
+      SELECT 
+          COUNT(*) AS numTravelers,
+          COALESCE(AVG(weight), 0) AS avgWeight
+      FROM cargo_checkins
+      WHERE flight_id = ?
+  `;
+
+  connection.query(flightQuery, [flightId], (err, flights) => {
       if (err) {
-        res.status(500).json({ error: "Database error" });
-        return;
+          return res.status(500).json({ error: 'Database error' });
       }
 
       if (flights.length === 0) {
-        res.status(404).json({ error: "Flight not found" });
-        return;
+          return res.status(404).json({ error: 'Flight not found' });
       }
 
       const flight = flights[0];
-      res.json({
-        flightId: flight.flight_id,
-        totalCapacity: flight.total_capacity,
-        remainingCapacity: flight.remaining_capacity,
-        usedCapacity: flight.total_capacity - flight.remaining_capacity,
+
+      // Get numTravelers and avgWeight
+      connection.query(statsQuery, [flightId], (err2, stats) => {
+          if (err2) {
+              return res.status(500).json({ error: 'Stats query error' });
+          }
+
+          const { numTravelers, avgWeight } = stats[0];
+
+          res.json({
+              flightId: flight.flight_id,
+              totalCapacity: flight.total_capacity,
+              remainingCapacity: flight.remaining_capacity,
+              usedCapacity: flight.total_capacity - flight.remaining_capacity,
+              numTravelers,
+              avgWeight: avgWeight !== null ? parseFloat(avgWeight).toFixed(2) : "0.00"
+          });
       });
-    }
-  );
+  });
 });
 
 app.get('/api/flight/:flightId/check-ins', (req, res) => {
@@ -227,7 +251,6 @@ app.get('/api/flight/:flightId/check-ins', (req, res) => {
         res.json(checkins);
     });
 });
-
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

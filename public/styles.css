@@ -65,3 +65,7 @@ button:hover {
     font-weight: bold;
     margin-top: 10px;
 }
+
+.status p {
+    margin: 5px 0;
+}
