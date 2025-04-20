@@ -1,10 +1,12 @@
 import express from 'express';
-import mysql from 'mysql';
+import mysql from 'mysql2';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import path from 'path';
+import authRoutes from './routes/auth.js';
+import auth from './middleware/auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -16,7 +18,19 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static("public"));
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Routes
+app.use('/api/auth', authRoutes);
+
+// Protected routes
+app.use('/api/flight', auth);
+app.use('/api/cargo', auth);
+
+// Serve dashboard.html for the root route
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
 
 // Database connection
 const connection = mysql.createConnection({
@@ -239,20 +253,18 @@ app.get('/api/flight/:flightId/check-ins', (req, res) => {
         FROM cargo_checkins c
         LEFT JOIN passengers p ON c.passenger_id = p.passenger_id
         WHERE c.flight_id = ?
-        ORDER BY c.check_in_time DESC
     `;
 
-    connection.query(query, [flightId], (err, checkins) => {
+    connection.query(query, [flightId], (err, results) => {
         if (err) {
-            res.status(500).json({ error: 'Database error' });
-            return;
+            return res.status(500).json({ error: 'Database error' });
         }
-
-        res.json(checkins);
+        res.json(results);
     });
 });
 
+// Start the server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
 });

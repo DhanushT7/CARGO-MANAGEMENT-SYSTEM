@@ -5,10 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Cargo Management</title>
     <link rel="stylesheet" href="styles.css" />
+    <style>
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+      }
+      .logout-btn {
+        padding: 8px 16px;
+        background-color: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .logout-btn:hover {
+        background-color: #c82333;
+      }
+    </style>
   </head>
   <body>
     <div class="container">
-      <h1>Cargo Management</h1>
+      <div class="header">
+        <h1>Cargo Management</h1>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+      </div>
 
       <!-- Side-by-side Flight Init & Cargo Check-in -->
       <div class="row">
@@ -50,7 +72,7 @@
           <div id="checkInStatus" class="status"></div>
         </div>
       </div>
-
+      <br>
       <!-- Flight Status Section -->
       <div class="card">
         <h2>Flight Status</h2>
@@ -63,7 +85,7 @@
         </form>
         <div id="flightStatus" class="status"></div>
       </div>
-
+      <br>
       <!-- Flights Table Section -->
       <div class="card">
         <h2>All Flights</h2>
@@ -81,6 +103,8 @@
         </table>
       </div>
 
+      <br>
+
       <!-- Cargo Check-ins Table Section -->
       <div class="card">
         <h2>Flight Check-ins</h2>
@@ -95,7 +119,7 @@
               <th>Passenger ID</th>
               <th>Passenger Name</th>
               <th>Weight (kg)</th>
-              <th>Price ($)</th>
+              <th>Price (₹)</th>
               <th>Check-in Time</th>
             </tr>
           </thead>
@@ -105,6 +129,40 @@
     </div>
 
     <script>
+      // Check authentication on page load
+      window.addEventListener('load', () => {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          window.location.href = '/login.html';
+        }
+      });
+
+      // Add token to all fetch requests
+      const originalFetch = window.fetch;
+      window.fetch = async function(url, options = {}) {
+        const token = localStorage.getItem('token');
+        if (token) {
+          options.headers = {
+            ...options.headers,
+            'Authorization': `Bearer ${token}`
+          };
+        }
+        const response = await originalFetch(url, options);
+        
+        // Handle unauthorized responses
+        if (response.status === 401) {
+          localStorage.removeItem('token');
+          window.location.href = '/login.html';
+        }
+        
+        return response;
+      };
+
+      function logout() {
+        localStorage.removeItem('token');
+        window.location.href = '/login.html';
+      }
+
       document
         .getElementById("initializeFlightForm")
         .addEventListener("submit", async (e) => {
@@ -151,7 +209,7 @@
             const data = await response.json();
             document.getElementById(
               "checkInStatus"
-            ).innerText = `Success! Price: $${data.price}, Remaining Capacity: ${data.remainingCapacity}kg`;
+            ).innerText = `Success! Price: ₹${data.price}, Remaining Capacity: ${data.remainingCapacity}kg`;
           } catch (error) {
             document.getElementById("checkInStatus").innerText =
               "Error: " + error.message;
